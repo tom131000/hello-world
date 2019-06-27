@@ -1,27 +1,22 @@
 import tensorflow as tf
 import numpy as np
 import random
+import pandas as pd
 
 class ToySequenceData(object):
-    def __init__(self, n_samples=1000, max_seq_len=20, min_seq_len=3,
+    def __init__(self, n_samples=1000, begin = 0, max_seq_len=20, min_seq_len=3,
                  max_value=1000):
         self.data = []
         self.labels = []
         self.seqlen = []
         for i in range(n_samples):
-            len = random.randint(min_seq_len, max_seq_len)
+            len = 29
+            temp_list = []
             self.seqlen.append(len)
-            if random.random() < .5:
-                rand_start = random.randint(0, max_value - len)
-                s = [[float(i) / max_value] for i in range(rand_start, rand_start + len)]
-                s += [[0.] for i in range(max_seq_len - len)]
-                self.data.append(s)
-                self.labels.append([1., 0.])
-            else:
-                s = [[float(random.randint(0, max_value)) / max_value] for i in range(len)]
-                s += [[0.] for i in range(max_seq_len - len)]
-                self.data.append(s)
-                self.labels.append([0., 1.])
+            for j in range(29):
+                temp_list.append([data[i + begin][j]])
+            self.data.append(temp_list)
+            self.labels.append(label[i + begin])
         self.batch_id = 0
 
     def next(self, batch_size):
@@ -33,16 +28,23 @@ class ToySequenceData(object):
         self.batch_id = min(self.batch_id + batch_size, len(self.data))
         return batch_data, batch_labels, batch_seqlen
 
+f = open('Log_Data.csv')
+f2 = open('mlabel.csv')
+df = pd.read_csv(f)
+df2 = pd.read_csv(f2)
+data = df.iloc[:,0:29].values
+label = df2.iloc[:,0:2].values
+
 
 learning_rate = 0.01
 training_iters = 1000000
-batch_size = 128
+batch_size = 1280
 display_step = 10
-seq_max_len = 20
+seq_max_len = 29
 n_hidden = 64
 n_classes = 2
-trainset = ToySequenceData(n_samples=1000, max_seq_len=seq_max_len)
-testset = ToySequenceData(n_samples=500, max_seq_len=seq_max_len)
+trainset = ToySequenceData(n_samples=460111, max_seq_len=seq_max_len)
+testset = ToySequenceData(n_samples=115027, begin= 460111, max_seq_len=seq_max_len)
 
 x = tf.placeholder("float", [None, seq_max_len, 1])
 y = tf.placeholder("float", [None, n_classes])
@@ -77,8 +79,9 @@ def dynamicRNN(x, seqlen, weights, biases):
 pred = dynamicRNN(x, seqlen, weights, biases)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
 optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
-correct_pred = tf.equal(tf.argmax(pred,1), tf.argmax(y,1))
-accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+negative_pred = tf.equal(tf.argmax(pred,1), tf.argmax(y,1))
+positvie_pred = tf.equal(tf.argmin(pred,1), tf.argmin(y,1))
+accuracy = tf.reduce_mean(tf.cast(negative_pred, tf.float32))
 init = tf.global_variables_initializer()
 with tf.Session() as sess:
     sess.run(init)
